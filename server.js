@@ -1,37 +1,40 @@
-const express = require("express");
-const bodyParser = require("body-parser");
+const axios = require("axios");
 
-const app = express();
-app.use(bodyParser.json());
+app.post("/webhook", async (req, res) => {
+  try {
+    const body = req.body;
 
-const PORT = process.env.PORT || 3000;
+    if (
+      body.entry &&
+      body.entry[0].changes &&
+      body.entry[0].changes[0].value.messages
+    ) {
+      const phone_number_id =
+        body.entry[0].changes[0].value.metadata.phone_number_id;
+      const from = body.entry[0].changes[0].value.messages[0].from;
+      const msg = body.entry[0].changes[0].value.messages[0].text.body;
 
-// ✅ Webhook verification for Meta
-app.get("/webhook", (req, res) => {
-  const VERIFY_TOKEN = "my_verify_token";
+      console.log("Message from user:", msg);
 
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
+      await axios.post(
+        `https://graph.facebook.com/v18.0/${phone_number_id}/messages`,
+        {
+          messaging_product: "whatsapp",
+          to: from,
+          text: { body: "Thanks for contacting Real Estate Agent 🏡\nPlease tell me:\n1️⃣ Budget\n2️⃣ Location\n3️⃣ Property Type" }
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
 
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
-    console.log("Webhook verified successfully!");
-    return res.status(200).send(challenge);
-  } else {
-    return res.sendStatus(403);
+    res.sendStatus(200);
+  } catch (error) {
+    console.error("Error:", error.response?.data || error.message);
+    res.sendStatus(500);
   }
-});
-
-// ✅ Receive messages
-app.post("/webhook", (req, res) => {
-  console.log("Incoming webhook:", JSON.stringify(req.body, null, 2));
-  res.sendStatus(200);
-});
-
-app.get("/", (req, res) => {
-  res.send("Server is running");
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
 });
