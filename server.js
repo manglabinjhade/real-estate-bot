@@ -1,28 +1,3 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const axios = require("axios");
-
-const app = express();
-app.use(bodyParser.json());
-
-const PORT = process.env.PORT || 3000;
-
-// 🔐 Webhook verification (Meta ke liye)
-app.get("/webhook", (req, res) => {
-  const VERIFY_TOKEN = "my_verify_token";
-
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
-    console.log("Webhook verified!");
-    return res.status(200).send(challenge);
-  } else {
-    return res.sendStatus(403);
-  }
-});
-
 // 💬 Receive & Auto Reply Logic
 app.post("/webhook", async (req, res) => {
   try {
@@ -41,29 +16,55 @@ app.post("/webhook", async (req, res) => {
 
       let replyText = "";
 
-      if (userMsg.includes("hi") || userMsg.includes("hello")) {
+      // STEP 1
+      if (userMsg === "hi" || userMsg === "hello") {
         replyText =
-          "Welcome to Real Estate Agent 🏡\n\nSabse pehle bataye:\n💰 Aapka budget kya hai?";
-      } else if (userMsg.match(/\d/)) {
+          "Hi 👋\nThanks for contacting us.\n\n1️⃣ Buy Property\n2️⃣ Rent Property\n\nReply with 1 or 2";
+      }
+
+      // STEP 2
+      else if (userMsg === "1") {
         replyText =
-          "Great 👍\n📍 Kaunsi location me property chahiye?";
-      } else if (
+          "Great! 🏡\n💰 What is your budget?";
+      }
+
+      else if (userMsg === "2") {
+        replyText =
+          "Nice 👍\n📍 Which location are you looking to rent in?";
+      }
+
+      // STEP 3 (Budget detected)
+      else if (userMsg.match(/\d/)) {
+        replyText =
+          "Got it 👍\n📍 Which location do you prefer?";
+      }
+
+      // STEP 4 (Location detected)
+      else if (
         userMsg.includes("pune") ||
         userMsg.includes("mumbai") ||
-        userMsg.includes("delhi")
+        userMsg.includes("delhi") ||
+        userMsg.includes("bangalore")
       ) {
         replyText =
-          "Perfect 📍\n🏠 Aapko kya chahiye?\n1️⃣ Flat\n2️⃣ Plot\n3️⃣ Villa";
-      } else if (
-        userMsg.includes("flat") ||
-        userMsg.includes("plot") ||
-        userMsg.includes("villa")
+          "Perfect 📍\n🏠 What type of property?\n1️⃣ Flat\n\n2️⃣ Plot\n\n3️⃣ Villa";
+      }
+
+      // STEP 5 (Property type)
+      else if (
+        userMsg === "flat" ||
+        userMsg === "plot" ||
+        userMsg === "villa" ||
+        userMsg === "1️⃣" ||
+        userMsg === "2️⃣" ||
+        userMsg === "3️⃣"
       ) {
         replyText =
-          "Thanks for the details! 🙌\nHamari team aapse jaldi contact karegi.";
-      } else {
-        replyText =
-          "Please share details so I can help you find the best property 🏡";
+          "Thanks for sharing details 🙌\nOur property expert will contact you shortly 📞";
+      }
+
+      else {
+        replyText = "Please share the details so I can help you better 🏡";
       }
 
       await axios.post(
@@ -89,12 +90,3 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// 🌐 Home route
-app.get("/", (req, res) => {
-  res.send("Server is running");
-});
-
-// 🚀 Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
